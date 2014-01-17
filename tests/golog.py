@@ -22,9 +22,49 @@ class Remove(Action):
 
 remove = Remove()
 
-p = If(Holds(exists(x)), Pick(x, Object, Exec(remove(x))))
+test_num = 1
 
-for p1, s1, a1 in trans_star(p, s, []):
-    print('p\' = %s' % p1)
-    print('s\' = %s' % s1)
-    print('a\' = %s' % a1)
+def pr(descr, pn, sn, an=None):
+    global test_num
+    if descr == 'initial':
+        print('************ TEST #%d ************' % test_num)
+        test_num += 1
+    print('%s state: %s' % (descr, sn))
+    print('%s program: %s' % (descr, pn))
+    if descr != 'initial':
+        print('executed actions: %s' % an)
+
+p = Exec(remove(a))
+pr('initial', p, s)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
+assert sn == State(exists(b), exists(c))
+
+p = While(Holds(exists(x)), Pick(x, Object, Exec(remove(x))))
+pr('initial', p, s)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
+assert len(an) == 3
+assert sn == State()
+
+p = Sequence(Exec(remove(a)), Choose(Exec(remove(a)), Exec(remove(b))))
+pr('initial', p, s)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
+assert sn == State(exists(c))
+
+p = If(Holds(exists(a)), Exec(remove(a)), Empty())
+pr('initial', p, s)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
+assert sn == State(exists(b), exists(c))
+
+passed = False
+p = Star(Choose(Exec(remove(a)), Exec(remove(b)), Exec(remove(c))))
+pr('initial', p, s)
+for pn, sn, an in trans_star(p, s, []):
+    if len(an) == 3 and sn == State():
+        passed = True
+        break
+pr('resulting', pn, sn, an)
+assert passed

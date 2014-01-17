@@ -160,7 +160,10 @@ class Object(object):
 
 class State(object):
     def __init__(self, *contents):
-        self.contents = contents[0] if isinstance(contents[0], set) else set(contents)
+        if len(contents) == 1 and isinstance(contents[0], set):
+            self.contents = contents[0]
+        else:
+            self.contents = set(contents)
 
     def query(self, q):
         for fact in self.contents:
@@ -182,6 +185,18 @@ class State(object):
 
     def __repr__(self):
         return self.__str__()
+
+    def __or__(self, other):
+        return State(self.contents | other.contents)
+
+    def __sub__(self, other):
+        return State(self.contents - other.contents)
+
+    def __eq__(self, other):
+        return self.contents == other.contents
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 class UnsatisfiedPreconditions(Exception):
     pass

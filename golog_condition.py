@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from strips import *
+
 class Condition:
     pass
 
@@ -35,7 +37,7 @@ class Holds(Condition):
         return Holds(GroundFluent(self.ground_fluent.fluent, *new_args))
 
     def holds(self, s):
-        return holds(s, self.ground_fluent)
+        return s.holds(self.ground_fluent)
 
 class Not(Condition):
     def __init__(self, c1):

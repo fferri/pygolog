@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from strips import UnsatisfiedPreconditions
+from strips import *
 
 def trans_star(p, s, a):
     if p.final(s):
@@ -32,7 +32,7 @@ class Choose(Program):
         yield from self.p2.trans(s)
 
     def final(self, s):
-        return self.p1.final() or self.p2.final()
+        return self.p1.final(s) or self.p2.final(s)
 
 class Empty(Program):
     def __str__(self):
@@ -99,18 +99,18 @@ class Pick(Program):
         self.prog = prog
 
     def __str__(self):
-        return 'pick %s from %s . %s' % (self.var, self.domain, self.prog)
+        return 'pick %s from %s . %s' % (self.var, self.domain.__name__, self.prog)
 
     def replace(self, var, obj):
         if var == self.var: return self
         else: return Pick(self.var, self.domain, self.prog.replace(var, obj))
 
     def trans(self, s):
-        for obj in objects[self.domain]:
+        for obj in get_objects_of_type(self.domain):
             yield from self.prog.replace(self.var, obj).trans(s)
 
     def final(self, s):
-        for obj in objects[self.domain]:
+        for obj in get_objects_of_type(self.domain):
             if self.prog.replace(self.var, obj).final(s): return True
         return False
 
@@ -132,8 +132,8 @@ class Sequence(Program):
         if self.p1.final(s):
             yield from self.p2.trans(s)
         else:
-            for p1t, st, at in self.p1.trans(s):
-                yield (Sequence(p1t, self.p2), st, at)
+            for pn, sn, an in self.p1.trans(s):
+                yield (Sequence(pn, self.p2), sn, an)
 
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
@@ -149,7 +149,8 @@ class Star(Program):
         return Star(self.p1.replace(var, obj))
 
     def trans(self, s):
-        yield from self.p1.trans(s)
+        for pn, sn, an in self.p1.trans(s):
+            yield (Sequence(pn, self), sn, an)
 
     def final(self, s):
         return True
@@ -168,7 +169,7 @@ class While(Program):
     def trans(self, s):
         if self.condition.holds(s):
             for pn, sn, an in self.p1.trans(s):
-                yield (Sequence(pn, While(self.condition, self.p1)), s1, an)
+                yield (Sequence(pn, self), sn, an)
 
     def final(self, s):
-        return not self.condition.holds(s) or self.p1.final()
+        return not self.condition.holds(s) or self.p1.final(s)
