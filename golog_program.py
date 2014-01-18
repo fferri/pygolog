@@ -8,7 +8,7 @@ def trans_star(p, s, a):
     if isinstance(p, Empty):
         return
     for p1, s1, a1 in p.trans(s):
-        yield from trans_star(p1, s1, a + [a1])
+        yield from trans_star(p1, s1, a + a1)
 
 class Program:
     pass
@@ -22,7 +22,7 @@ class Choose(Program):
             self.p2 = p2
 
     def __str__(self):
-        return '%s | %s' % (self.p1, self.p2)
+        return '(%s | %s)' % (self.p1, self.p2)
 
     def replace(self, var, obj):
         return Choose(self.p1.replace(var, obj), self.p2.replace(var, obj))
@@ -62,7 +62,7 @@ class Exec(Program):
         return Exec(GroundAction(self.ground_action.action, *new_args))
 
     def trans(self, s):
-        try: yield (Empty(), self.ground_action.execute(s), self.ground_action)
+        try: yield (Empty(), self.ground_action.execute(s), [self.ground_action])
         except UnsatisfiedPreconditions: pass
 
     def final(self, s):
@@ -99,7 +99,7 @@ class Pick(Program):
         self.prog = prog
 
     def __str__(self):
-        return 'pick %s from %s . %s' % (self.var, self.domain.__name__, self.prog)
+        return 'pick %s from %s and %s' % (self.var, self.domain.__name__, self.prog)
 
     def replace(self, var, obj):
         if var == self.var: return self
@@ -123,17 +123,17 @@ class Sequence(Program):
             self.p2 = p2
 
     def __str__(self):
-        return '%s; %s' % (self.p1, self.p2)
+        return '%s ; %s' % (self.p1, self.p2)
 
     def replace(self, var, obj):
         return Sequence(self.p1.replace(var, obj), self.p2.replace(var, obj))
 
     def trans(self, s):
-        if self.p1.final(s):
-            yield from self.p2.trans(s)
-        else:
+        if not isinstance(self.p1, Empty):
             for pn, sn, an in self.p1.trans(s):
                 yield (Sequence(pn, self.p2), sn, an)
+        if self.p1.final(s) or isinstance(self.p1, Empty):
+            yield from self.p2.trans(s)
 
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
@@ -143,7 +143,7 @@ class Star(Program):
         self.p1 = p1
 
     def __str__(self):
-        return '%s*' % (self.p1)
+        return '(%s)*' % (self.p1)
 
     def replace(self, var, obj):
         return Star(self.p1.replace(var, obj))
@@ -154,6 +154,23 @@ class Star(Program):
 
     def final(self, s):
         return True
+
+class Test(Program):
+    def __init__(self, condition):
+        self.condition = condition
+
+    def __str__(self):
+        return '?(%s)' % (self.condition)
+
+    def replace(self, var, obj):
+        return Test(self.condition.replace(var, obj))
+
+    def trans(self, s):
+        if self.condition.holds(s):
+            yield (Empty(), s, [])
+
+    def final(self, s):
+        return False
 
 class While(Program):
     def __init__(self, condition, p1):
