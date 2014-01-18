@@ -27,7 +27,7 @@ test_num = 1
 def pr(descr, pn, sn, an=None):
     global test_num
     if descr == 'initial':
-        print('************ TEST #%d ************' % test_num)
+        print('\n************ TEST #%d ************' % test_num)
         test_num += 1
     print('%s state: %s' % (descr, sn))
     print('%s program: %s' % (descr, pn))
@@ -68,3 +68,35 @@ for pn, sn, an in trans_star(p, s, []):
         break
 pr('resulting', pn, sn, an)
 assert passed
+
+p = Test(Holds(exists(x)))
+pr('initial', p, s)
+pn, sn, an = next(trans_star(p, s, [])) # test passed if no StopIteration exception
+pr('resulting', pn, sn, an)
+
+p = Sequence(Exec(remove(a)), Exec(remove(b)), Exec(remove(c)), Test(Holds(exists(x))))
+pr('initial', p, s)
+assert not any(trans_star(p, s, [])) # should not have solution
+print('no solutions (as expected).')
+
+p = Sequence(Exec(remove(a)), Choose(Sequence(Test(Holds(exists(a))), Exec(remove(b))), Exec(remove(c))))
+pr('initial', p, s)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
+
+p = Sequence(Choose(Exec(remove(a)), Exec(remove(b)), Exec(remove(c))), Test(Holds(exists(a))))
+pr('initial', p, s)
+for pn, sn, an in trans_star(p, s, []):
+    print(pn, sn, an)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
+
+p = Sequence(Star(Pick(x, Object, Exec(remove(x)))), Test(Holds(exists(x))))
+p = Star(Pick(x, Object, Exec(remove(x))))
+p = Sequence(Star(Pick(x, Object, Exec(remove(x)))), Exec(remove(b)))
+p = Sequence(Star(Pick(x, Object, Exec(remove(x)))), Test(Not(Holds(exists(x)))))
+pr('initial', p, s)
+for pn, sn, an in trans_star(p, s, []):
+    print(pn, sn, an)
+pn, sn, an = next(trans_star(p, s, []))
+pr('resulting', pn, sn, an)
