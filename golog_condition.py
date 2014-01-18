@@ -17,7 +17,7 @@ class And(Condition):
         return '%s and %s' % (self.c1, self.c2)
 
     def replace(self, var, obj):
-        return self
+        return And(self.c1.replace(var, obj), self.c2.replace(var, obj))
 
     def holds(self, s):
         return self.c1.holds(s) and self.c2.holds(s)
@@ -47,7 +47,7 @@ class Not(Condition):
         return 'not %s' % (self.c1)
 
     def replace(self, var, obj):
-        return self
+        return Not(self.c1.replace(var, obj))
 
     def holds(self, s):
         return not self.c1.holds(s)
@@ -64,7 +64,7 @@ class Or(Condition):
         return '%s or %s' % (self.c1, self.c2)
 
     def replace(self, var, obj):
-        return self
+        return Or(self.c1.replace(var, obj), self.c2.replace(var, obj))
 
     def holds(self, s):
         return self.c1.holds(s) or self.c2.holds(s)
