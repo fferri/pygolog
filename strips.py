@@ -80,12 +80,15 @@ class Action(object):
 
     def __call__(self, *args):
         if len(args) != len(self.types):
-            raise TypeError('bad number of arguments (got %d, expected %d)' % (len(args), len(self.types)))
+            raise TypeError('%s: bad number of arguments (got %d, expected %d)' % (str(self), len(args), len(self.types)))
         for i, (arg, expected_type) in enumerate(zip(args, self.types)):
             if not isinstance(arg, expected_type) and not isinstance(arg, Variable):
-                raise TypeError('bad type for arg %d (got %s, expected %s)' % (i, type(arg), expected_type))
+                raise TypeError('%s: bad type for arg %d (got %s, expected %s)' % (str(self), i, type(arg), expected_type))
 
         return GroundAction(self, *args)
+
+    def __str__(self):
+        return '%s(%s)' % (self.name, ', '.join(t.__name__ for t in self.types))
 
 class Fluent(object):
     def __init__(self, name, *types):
@@ -96,12 +99,15 @@ class Fluent(object):
 
     def __call__(self, *args):
         if len(args) != len(self.types):
-            raise TypeError('bad number of arguments (got %d, expected %d)' % (len(args), len(self.types)))
+            raise TypeError('%s: bad number of arguments (got %d, expected %d)' % (str(self), len(args), len(self.types)))
         for i, (arg, expected_type) in enumerate(zip(args, self.types)):
             if not isinstance(arg, expected_type) and not isinstance(arg, Variable):
-                raise TypeError('bad type for arg %d (got %s, expected %s)' % (i, type(arg), expected_type))
+                raise TypeError('%s: bad type for arg %d (got %s, expected %s)' % (str(self), i, type(arg), expected_type))
 
         return GroundFluent(self, *args)
+
+    def __str__(self):
+        return '%s(%s)' % (self.name, ', '.join(t.__name__ for t in self.types))
 
 class GroundAction(object):
     def __init__(self, action, *args):
