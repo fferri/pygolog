@@ -14,7 +14,12 @@ class And(Condition):
             self.c2 = c2
 
     def __str__(self):
-        return '%s and %s' % (self.c1, self.c2)
+        def wrap(cond):
+            if isinstance(cond, Or):
+                return '(%s)' % cond
+            else:
+                return str(cond)
+        return '%s and %s' % (wrap(self.c1), wrap(self.c2))
 
     def replace(self, var, obj):
         return And(self.c1.replace(var, obj), self.c2.replace(var, obj))
@@ -56,7 +61,7 @@ class Or(Condition):
     def __init__(self, c1, c2, *cs):
         self.c1 = c1
         if len(cs) > 0:
-            self.c2 = And(c2, cs[0], *cs[1:])
+            self.c2 = Or(c2, cs[0], *cs[1:])
         else:
             self.c2 = c2
 
