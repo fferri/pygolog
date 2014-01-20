@@ -55,14 +55,10 @@ class Exec(Program):
         return '%s' % (self.ground_action)
 
     def replace(self, var, obj):
-        new_args = []
-        for arg in self.ground_action.args:
-            if arg == var: new_args.append(obj)
-            else: new_args.append(arg)
-        return Exec(GroundAction(self.ground_action.action, *new_args))
+        return Exec(self.ground_action.replace(var, obj))
 
     def trans(self, s):
-        try: yield (Empty(), self.ground_action.execute(s), [self.ground_action])
+        try: yield (Empty(), self.ground_action.apply(s), [self.ground_action])
         except UnsatisfiedPreconditions: pass
 
     def final(self, s):

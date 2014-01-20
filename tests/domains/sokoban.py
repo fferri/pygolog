@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.3
 
+from collections import defaultdict
 from strips import *
 
 class Locatable(Object): pass
@@ -7,34 +8,76 @@ class Dude(Locatable): pass
 class Block(Locatable): pass
 class Space(Object): pass
 
+class SokobanState(State):
+    def __init__(self):
+        self.at = dict()
+        self.has_dude = defaultdict(bool)
+        self.has_block = defaultdict(bool)
+
+    @Action
+    def move(self, dude: Dude, start: Space, end: Space):
+        if not (start != end
+                and adjacent(start, end)
+                and self.at[dude] == start
+                and self.has_dude[start]
+                and not self.has_dude[end]
+                and not self.has_block[end]
+                and not self.has_block[start]):
+            raise UnsatisfiedPreconditions()
+        self.at[dude] = end
+        self.has_dude[end] = True
+        del self.has_dude[start]
+
+    @Action
+    def move_block(self, dude: Dude, block: Block, dude_start: Space, block_start: Space, block_end: Space):
+        if not (dude_start != block_start
+                and block_start != block_end
+                and dude_start != block_end
+                and self.has_dude[dude_start]
+                and not self.has_dude[block_start]
+                and not self.has_dude[block_end]
+                and self.has_block[block_start]
+                and not self.has_block[dude_start]
+                and not self.has_block[block_end]
+                and inline(dude_start, block_start, block_end)
+                and self.at[dude] == dude_start
+                and self.at[block] == block_start):
+            raise UnsatisfiedPreconditions()
+        self.at[dude] = block_start
+        self.has_dude[block_start] = True
+        self.at[block] = block_end
+        self.has_block[block_end] = True
+        del self.has_dude[dude_start]
+        del self.has_block[block_start]
+#
+#    def has_dude(self, space):
+#        return any(self.pos[o] == space for o in get_objects_of_type(Dude))
+#
+#    def has_block(self, space):
+#        return any(self.pos[o] == space for o in get_objects_of_type(Block))
+
 player = Dude('player')
 a = Block('a')
 p = list(Space('p%d' % i) for i in range(14))
 
-is_left = Fluent('is_left', Space, Space)
-is_above = Fluent('is_above', Space, Space)
-at = Fluent('at', Locatable, Space)
-has_dude = Fluent('has_dude', Space)
-has_block = Fluent('has_block', Space)
+# static relations:
+is_left = defaultdict(bool, {p: True for p in [(p[1], p[2]), (p[4], p[5]), (p[5], p[6]), (p[6], p[7]), (p[8], p[9]), (p[9], p[10]), (p[10], p[11]), (p[12], p[13])]})
+is_above = defaultdict(bool, {p: True for p in [(p[4], p[8]), (p[8], p[12]), (p[9], p[13]), (p[5], p[9]), (p[3], p[5]), (p[2], p[3]), (p[6], p[10]), (p[7], p[11])]})
 
-s = State(is_left(p[1], p[2]), is_left(p[4], p[5]), is_left(p[5], p[6]), is_left(p[6], p[7]), is_left(p[8], p[9]), is_left(p[9], p[10]), is_left(p[10], p[11]), is_left(p[12], p[13]), is_above(p[4], p[8]), is_above(p[8], p[12]), is_above(p[9], p[13]), is_above(p[5], p[9]), is_above(p[3], p[5]), is_above(p[2], p[3]), is_above(p[6], p[10]), is_above(p[7], p[11]), at(player, p[3]), has_dude(p[3]), at(a, p[10]), has_block(p[10]))
+def adjacent(s1, s2):
+    return is_left[(s1, s2)] or is_left[(s2, s1)] or is_above[(s1, s2)] or is_above[(s2, s1)]
 
-# move without pushing anything
-class Move(Action):
-    def execute(self, s, dude: Dude, start: Space, end: Space):
-        if not ((s.holds(is_above(start, end)) or s.holds(is_above(end, start)) or s.holds(is_left(start, end)) or s.holds(is_left(end, start))) and s.holds(at(dude, start)) and s.holds(has_dude(start)) and start != end and not s.holds(has_dude(end)) and not s.holds(has_block(end)) and not s.holds(has_block(start))):
-            raise UnsatisfiedPreconditions()
-        return s.add(at(dude, end), has_dude(end)).remove(at(dude, start), has_dude(start))
+def inline(s1, s2, s3):
+    return ((is_above[(s2, s1)] and is_above[(s3, s2)]) or
+            (is_above[(s1, s2)] and is_above[(s2, s3)]) or
+            (is_left[(s2, s1)] and is_left[(s3, s2)]) or
+            (is_left[(s1, s2)] and is_left[(s2, s3)]))
 
-# move block
-class MoveBlock(Action):
-    def execute(self, s, dude: Dude, block: Block, dude_start: Space, block_start: Space, block_end: Space):
-        if not (dude_start != block_start and block_start != block_end and dude_start != block_end and s.holds(has_dude(dude_start)) and not s.holds(has_dude(block_start)) and not s.holds(has_dude(block_end)) and s.holds(has_block(block_start)) and not s.holds(has_block(dude_start)) and not s.holds(has_block(block_end)) and (s.holds(is_above(block_start, dude_start), is_above(block_end, block_start)) or s.holds(is_above(dude_start, block_start), is_above(block_start, block_end)) or s.holds(is_left(block_start, dude_start), is_left(block_end, block_start)) or s.holds(is_left(dude_start, block_start), is_left(block_start, block_end))) and s.holds(at(dude, dude_start)) and s.holds(at(block, block_start))):
-            raise UnsatisfiedPreconditions()
-        return s.add(at(dude, block_start), has_dude(block_start), at(block, block_end), has_block(block_end)).remove(at(dude, dude_start), has_dude(block_start), at(block, block_start), has_block(block_start))
+s = SokobanState()
+s.at[player] = p[5]
+s.at[a] = p[10]
+s.has_dude[p[5]] = True
+s.has_block[p[10]] = True
 
-move = Move()
-move_block = MoveBlock()
-
-goal = lambda s: s.holds(at(a, p[11]), has_block(p[11]))
+goal = lambda s: s.at[a] == p[13] and s.has_block[p[13]]
 

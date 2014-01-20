@@ -1,41 +1,41 @@
 #!/usr/bin/env python3.3
 
+from collections import defaultdict
+from copy import copy
 from strips import *
 
-at = Fluent('at', int)
-light = Fluent('light', int)
+class ElevatorState(State):
+    def __init__(self, s=None):
+        self.num_floors = 6
+        if s is None:
+            self.at = 1
+            self.light = defaultdict(lambda: False)
+        else:
+            self.at = s.at
+            self.light = copy(s.light)
 
-s = State(
-    at(3),
-    light(2),
-    light(5)
-)
+    @Action
+    def up(self):
+        if self.at >= self.num_floors:
+            raise UnsatisfiedPreconditions()
+        self.at += 1
 
-def curfloor(s): return next(s.query(at(Variable()))).args[0]
+    @Action
+    def down(self):
+        if self.at <= 1:
+            raise UnsatisfiedPreconditions()
+        self.at -= 1
 
-class Up(Action):
-    def execute(self, s):
-        fl = curfloor(s)
-        if fl >= 6: raise UnsatisfiedPreconditions()
-        return s.add(at(fl+1)).remove(at(fl))
+    @Action
+    def turn_off(self):
+        if not self.light[self.at]:
+            raise UnsatisfiedPreconditions()
+        del self.light[self.at]
 
-class Down(Action):
-    def execute(self, s):
-        fl = curfloor(s)
-        if fl <= 1: raise UnsatisfiedPreconditions()
-        return s.add(at(fl-1)).remove(at(fl))
+s = ElevatorState()
+s.at = 3
+s.light[2] = True
+s.light[5] = True
 
-class TurnOff(Action):
-    def execute(self, s):
-        fl = curfloor(s)
-        if not s.holds(light(fl)): raise UnsatisfiedPreconditions()
-        return s.remove(light(fl))
-
-up = Up()
-down = Down()
-turnoff = TurnOff()
-
-x = Variable('x')
-
-goal = lambda s: s.holds(at(x)) and not s.holds(light(x))
+goal = lambda s: not any(s.light[i] for i in range(1,1+s.num_floors))
 

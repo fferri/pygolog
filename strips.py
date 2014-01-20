@@ -6,36 +6,35 @@ from copy import copy, deepcopy
 _actions = {}
 _objects = {}
 
-def unify(a, b, sigma={}):
-    if isinstance(a, GroundFluent) and isinstance(b, GroundFluent):
-        return len(a.args) == len(b.args) and a.fluent.name == b.fluent.name \
-                and all(unify(x, y, sigma) for x, y in zip(a.args, b.args))
-    elif isinstance(a, GroundAction) and isinstance(b, GroundAction):
-        return len(a.args) == len(b.args) and a.action.name == b.action.name \
-                and all(unify(x, y, sigma) for x, y in zip(a.args, b.args))
-    elif isinstance(a, Variable):
-        if a in sigma and sigma[a] != b: return None
-        sigma[a] = b
-        return sigma
-    elif isinstance(b, Variable):
-        if b in sigma and sigma[b] != a: return None
-        sigma[b] = a
-        return sigma
-    else:
-        return a == b
+# action decorator
+class Action():
+    def __init__(self, method):
+        global _actions
+        self.action = True
+        self.name = method.__name__
+        self.method = method
+        arg_spec = inspect.getfullargspec(method)
+        self.types = [arg_spec.annotations[arg] if arg in arg_spec.annotations else Object for arg in arg_spec.args[1:]]
 
-def get_action_by_name(n):
-    return _actions[n]
+        _actions[self.name] = self
+
+    def apply(self, state, *args):
+        cloned_state = state.copy()
+        self.method(cloned_state, *args)
+        return cloned_state
+
+    def ground(self, *args):
+        return GroundAction(self, *args)
+
+    def __call__(self, *args):
+        return self.ground(*args)
 
 def pick_action(s):
-    global actions, objects
-    for action in actions.values():
-        arg_domains = list(get_objects_of_type(t) for t in action.types)
-        for args in itertools.product(*arg_domains):
-            ground_action = action(*args)
+    global objects
+    for action_name, action in _actions.items():
+        for args in itertools.product(*[get_objects_of_type(t) for t in action.types]):
             try:
-                s1 = ground_action.execute(s)
-                yield (ground_action, s1)
+                yield (action.ground(*args), action.apply(s, *args))
             except UnsatisfiedPreconditions:
                 pass
 
@@ -60,86 +59,32 @@ def get_objects_of_type(t):
     if t in _objects: return _objects[t]
     else: return []
 
-class Action(object):
-    def __init__(self):
-        global actions
-        if 'actions' not in globals():
-            actions = {}
-        self.name = self.__class__.__name__
-        if self.name not in actions:
-            actions[self.name] = self
-
-        if not hasattr(self, 'execute'):
-            raise Exception('actions must implement the execute(s, ...) method')
-        arg_spec = inspect.getfullargspec(getattr(self, 'execute'))
-        self.types = []
-        for arg in arg_spec.args[2:]:
-            if arg not in arg_spec.annotations:
-                raise Exception('execute() arguments must have type annotation')
-            self.types.append(arg_spec.annotations[arg])
-
-    def __call__(self, *args):
-        if len(args) != len(self.types):
-            raise TypeError('%s: bad number of arguments (got %d, expected %d)' % (str(self), len(args), len(self.types)))
-        for i, (arg, expected_type) in enumerate(zip(args, self.types)):
-            if not isinstance(arg, expected_type) and not isinstance(arg, Variable):
-                raise TypeError('%s: bad type for arg %d (got %s, expected %s)' % (str(self), i, type(arg), expected_type))
-
-        return GroundAction(self, *args)
-
-    def __str__(self):
-        return '%s(%s)' % (self.name, ', '.join(t.__name__ for t in self.types))
-
-class Fluent(object):
-    def __init__(self, name, *types):
-        if not isinstance(name, str):
-            raise TypeError('name must be str, not %s' % type(name))
-        self.name = name
-        self.types = types
-
-    def __call__(self, *args):
-        if len(args) != len(self.types):
-            raise TypeError('%s: bad number of arguments (got %d, expected %d)' % (str(self), len(args), len(self.types)))
-        for i, (arg, expected_type) in enumerate(zip(args, self.types)):
-            if not isinstance(arg, expected_type) and not isinstance(arg, Variable):
-                raise TypeError('%s: bad type for arg %d (got %s, expected %s)' % (str(self), i, type(arg), expected_type))
-
-        return GroundFluent(self, *args)
-
-    def __str__(self):
-        return '%s(%s)' % (self.name, ', '.join(t.__name__ for t in self.types))
-
 class GroundAction(object):
     def __init__(self, action, *args):
         self.action = action
         self.args = args
+        for i, (a, t) in enumerate(zip(args, action.types)):
+            if not isinstance(a, t):
+                raise TypeError('%s: arg %d, got %s, expected %s' % (self, i, type(a).__name__, t.__name__))
 
     def __str__(self):
         return '%s(%s)' % (self.action.name, ', '.join(str(arg) for arg in self.args))
 
     def __repr__(self): return self.__str__()
 
-    def execute(self, s):
-        return self.action.execute(s, *self.args)
+    def apply(self, s):
+        return self.action.apply(s, *self.args)
 
-class GroundFluent(object):
-    def __init__(self, fluent, *args):
-        self.fluent = fluent
-        self.args = args
+    def replace(self, var, obj):
+        new_args = [obj if arg == var else arg for arg in self.args]
+        return GroundAction(self.action, *new_args)
 
-    def __str__(self):
-        return '%s(%s)' % (self.fluent.name, ', '.join(str(arg) for arg in self.args))
+    def trans(self, s):
+        try: yield (Empty(), self.apply(s), [self])
+        except UnsatisfiedPreconditions: pass
 
-    def __repr__(self): return self.__str__()
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.fluent.name == other.fluent.name and self.args == other.args
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash(self.fluent.name) + sum(hash(arg) for arg in self.args)
+    def final(self, s):
+        return False
 
 class Object(object):
     def __init__(self, name):
@@ -165,53 +110,35 @@ class Object(object):
     def __hash__(self): return hash(self.name)
 
 class State(object):
-    def __init__(self, *contents):
-        if len(contents) == 1 and isinstance(contents[0], set):
-            self.contents = contents[0]
-        else:
-            self.contents = set(contents)
-
-    def query(self, q):
-        for fact in self.contents:
-            sigma = dict()
-            if unify(fact, q, sigma):
-                yield fact
-
-    def holds(self, *qs):
-        return all(any(self.query(q)) for q in qs)
-
-    def add(self, *qs):
-        return State(self.contents | set(qs))
-
-    def remove(self, *qs):
-        return State(self.contents - set(qs))
-
     def __str__(self):
-        return str(self.contents)
+        return self.__repr__()
 
     def __repr__(self):
-        return self.__str__()
-
-    def __or__(self, other):
-        return State(self.contents | other.contents)
-
-    def __sub__(self, other):
-        return State(self.contents - other.contents)
+        return '<State %s>' % self.__dict__
 
     def __eq__(self, other):
-        return self.contents == other.contents
+        return self.__dict__ == other.__dict__
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def copy(self):
+        cloned_state = copy(self)
+        for k, v in self.__dict__.items():
+            setattr(cloned_state, k, copy(v))
+        return cloned_state
+
+    def actions(self):
+        for k in dir(self):
+            if getattr(getattr(self, k), 'action', False): yield k
+
 class UnsatisfiedPreconditions(Exception):
     pass
 
-auto_id = 1
-
 class Variable(object):
+    auto_id = 1
+
     def __init__(self, name=None):
-        global auto_id
         if name is None:
             name = '?_x%d' % auto_id
             auto_id += 1

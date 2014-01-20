@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.3
 
+from collections import defaultdict
 from strips import *
 from golog_condition import *
 from golog_program import *
@@ -7,20 +8,23 @@ from golog_program import *
 x = Variable('x')
 y = Variable('y')
 
-exists = Fluent('exists', Object)
-
 a = Object('a')
 b = Object('b')
 c = Object('c')
 
-s = State(exists(a), exists(b), exists(c))
+class TestState(State):
+    def __init__(self):
+        self.exists = defaultdict(bool)
 
-class Remove(Action):
-    def execute(self, s, obj: Object):
-        if not s.holds(exists(obj)): raise UnsatisfiedPreconditions()
-        return s.remove(exists(obj))
+    @Action
+    def remove(self, obj):
+        if not self.exists[obj]: raise UnsatisfiedPreconditions()
+        del self.exists[obj]
 
-remove = Remove()
+s = TestState()
+s.exists[a] = True
+s.exists[b] = True
+s.exists[c] = True
 
 test_num = 1
 
@@ -34,7 +38,7 @@ def pr(descr, pn, sn, an=None):
     if descr != 'initial':
         print('executed actions: %s' % an)
 
-p = Exec(remove(a))
+p = Exec(TestState.remove(a))
 pr('initial', p, s)
 pn, sn, an = next(trans_star(p, s, []))
 pr('resulting', pn, sn, an)
