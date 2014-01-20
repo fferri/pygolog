@@ -72,19 +72,14 @@ class GroundAction(object):
 
     def __repr__(self): return self.__str__()
 
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.action == other.action and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def apply(self, s):
         return self.action.apply(s, *self.args)
-
-    def replace(self, var, obj):
-        new_args = [obj if arg == var else arg for arg in self.args]
-        return GroundAction(self.action, *new_args)
-
-    def trans(self, s):
-        try: yield (Empty(), self.apply(s), [self])
-        except UnsatisfiedPreconditions: pass
-
-    def final(self, s):
-        return False
 
 class Object(object):
     def __init__(self, name):

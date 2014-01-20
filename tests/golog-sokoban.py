@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.3
 
 from strips import *
-from golog_condition import *
 from golog_program import *
 from domains.sokoban import *
 

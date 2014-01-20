@@ -2,11 +2,7 @@
 
 from collections import defaultdict
 from strips import *
-from golog_condition import *
 from golog_program import *
-
-x = Variable('x')
-y = Variable('y')
 
 a = Object('a')
 b = Object('b')
@@ -21,86 +17,71 @@ class TestState(State):
         if not self.exists[obj]: raise UnsatisfiedPreconditions()
         del self.exists[obj]
 
+remove = TestState.remove # alias
+
+def assert_pn(s, incl, excl):
+    for x in incl: assert s.exists[x]
+    for x in excl: assert not s.exists[x]
+
+def test01(s):
+    p = Exec(remove(a))
+    pn, sn, an = next(trans_star(p, s, []))
+    assert an == [TestState.remove(a)]
+    assert_pn(sn, [b, c], [a])
+
+def test02(s):
+    p = While(lambda s: s.exists, Pick(Object, lambda x: Exec(TestState.remove(x))))
+    pn, sn, an = next(trans_star(p, s, []))
+    assert len(an) == 3
+    assert_pn(sn, [], [a, b, c])
+
+def test03(s):
+    p = Sequence(Exec(remove(a)), Choose(Exec(remove(a)), Exec(remove(b))))
+    pn, sn, an = next(trans_star(p, s, []))
+    assert_pn(sn, [c], [a, b])
+
+def test04(s):
+    p = If(lambda s: s.exists[a], Exec(remove(a)), Empty())
+    pn, sn, an = next(trans_star(p, s, []))
+    assert_pn(sn, [b, c], [a])
+
+def test05(s):
+    passed = False
+    p = Star(Choose(Exec(remove(a)), Exec(remove(b)), Exec(remove(c))))
+    for pn, sn, an in trans_star(p, s, []):
+        if len(an) == 3 and not sn.exists:
+            passed = True
+            break
+    assert passed
+
+def test06(s):
+    p = Test(lambda s: s.exists)
+    pn, sn, an = next(trans_star(p, s, [])) # test passed if no StopIteration exception
+
+def test07(s):
+    p = Sequence(Exec(remove(a)), Exec(remove(b)), Exec(remove(c)), Test(lambda s: s.exists))
+    assert not any(trans_star(p, s, [])) # should not have solution
+
+def test08(s):
+    p = Sequence(Exec(remove(a)), Choose(Sequence(Test(lambda s: s.exists[a]), Exec(remove(b))), Exec(remove(c))))
+    pn, sn, an = next(trans_star(p, s, []))
+    assert_pn(sn, [b], [a, c])
+
+def test09(s):
+    p = Sequence(Choose(Exec(remove(a)), Exec(remove(b)), Exec(remove(c))), Test(lambda s: s.exists[a]))
+    for pn, sn, an in trans_star(p, s, []):
+        assert sn.exists[a] and (not sn.exists[b] or not sn.exists[c])
+
+def test10(s):
+    p = Sequence(Star(Pick(Object, lambda x: Exec(remove(x)))), Test(lambda s: not s.exists))
+    for pn, sn, an in trans_star(p, s, []):
+        assert_pn(sn, [], [a, b, c])
+    pn, sn, an = next(trans_star(p, s, []))
+
 s = TestState()
 s.exists[a] = True
 s.exists[b] = True
 s.exists[c] = True
 
-test_num = 1
-
-def pr(descr, pn, sn, an=None):
-    global test_num
-    if descr == 'initial':
-        print('\n************ TEST #%d ************' % test_num)
-        test_num += 1
-    print('%s state: %s' % (descr, sn))
-    print('%s program: %s' % (descr, pn))
-    if descr != 'initial':
-        print('executed actions: %s' % an)
-
-p = Exec(TestState.remove(a))
-pr('initial', p, s)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
-assert sn == State(exists(b), exists(c))
-
-p = While(Holds(exists(x)), Pick(x, Object, Exec(remove(x))))
-pr('initial', p, s)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
-assert len(an) == 3
-assert sn == State()
-
-p = Sequence(Exec(remove(a)), Choose(Exec(remove(a)), Exec(remove(b))))
-pr('initial', p, s)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
-assert sn == State(exists(c))
-
-p = If(Holds(exists(a)), Exec(remove(a)), Empty())
-pr('initial', p, s)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
-assert sn == State(exists(b), exists(c))
-
-passed = False
-p = Star(Choose(Exec(remove(a)), Exec(remove(b)), Exec(remove(c))))
-pr('initial', p, s)
-for pn, sn, an in trans_star(p, s, []):
-    if len(an) == 3 and sn == State():
-        passed = True
-        break
-pr('resulting', pn, sn, an)
-assert passed
-
-p = Test(Holds(exists(x)))
-pr('initial', p, s)
-pn, sn, an = next(trans_star(p, s, [])) # test passed if no StopIteration exception
-pr('resulting', pn, sn, an)
-
-p = Sequence(Exec(remove(a)), Exec(remove(b)), Exec(remove(c)), Test(Holds(exists(x))))
-pr('initial', p, s)
-assert not any(trans_star(p, s, [])) # should not have solution
-print('no solutions (as expected).')
-
-p = Sequence(Exec(remove(a)), Choose(Sequence(Test(Holds(exists(a))), Exec(remove(b))), Exec(remove(c))))
-pr('initial', p, s)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
-
-p = Sequence(Choose(Exec(remove(a)), Exec(remove(b)), Exec(remove(c))), Test(Holds(exists(a))))
-pr('initial', p, s)
-for pn, sn, an in trans_star(p, s, []):
-    print(pn, sn, an)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
-
-p = Sequence(Star(Pick(x, Object, Exec(remove(x)))), Test(Holds(exists(x))))
-p = Star(Pick(x, Object, Exec(remove(x))))
-p = Sequence(Star(Pick(x, Object, Exec(remove(x)))), Exec(remove(b)))
-p = Sequence(Star(Pick(x, Object, Exec(remove(x)))), Test(Not(Holds(exists(x)))))
-pr('initial', p, s)
-for pn, sn, an in trans_star(p, s, []):
-    print(pn, sn, an)
-pn, sn, an = next(trans_star(p, s, []))
-pr('resulting', pn, sn, an)
+for i in range(1,11): globals()['test%02d' % i](s)
+print('All tests passed successfully')
