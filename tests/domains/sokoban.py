@@ -75,8 +75,8 @@ def inline(s1, s2, s3):
 
 s = SokobanState()
 s.at[player] = p[5]
-s.at[a] = p[10]
 s.has_dude[p[5]] = True
+s.at[a] = p[10]
 s.has_block[p[10]] = True
 
 goal = lambda s: s.at[a] == p[13] and s.has_block[p[13]]

@@ -4,15 +4,18 @@ from collections import defaultdict
 from copy import copy
 from strips import *
 
+class Floor(Object):
+    def __init__(self, num):
+        super(Floor, self).__init__('floor[%d]' % num)
+        self.num = num
+
+floor = {n: Floor(n) for n in [1,2,3,4,5,6]}
+
 class ElevatorState(State):
     def __init__(self, s=None):
         self.num_floors = 6
-        if s is None:
-            self.at = 1
-            self.light = defaultdict(lambda: False)
-        else:
-            self.at = s.at
-            self.light = copy(s.light)
+        self.at = 1
+        self.light = defaultdict(bool)
 
     @Action
     def up(self):
@@ -37,5 +40,5 @@ s.at = 3
 s.light[2] = True
 s.light[5] = True
 
-goal = lambda s: not any(s.light[i] for i in range(1,1+s.num_floors))
+goal = lambda s: not any(s.light.values())
 
