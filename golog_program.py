@@ -44,35 +44,31 @@ class Exec(Program):
         return False
 
 class If(Program):
-    def __init__(self, condition, then_branch, else_branch):
+    def __init__(self, condition, p1, p2):
         self.condition = condition
-        self.then_branch = then_branch
-        self.else_branch = else_branch
+        self.p1 = p1
+        self.p2 = p2
 
     def trans(self, s):
-        if self.condition(s):
-            yield from self.then_branch.trans(s)
-        else:
-            yield from self.else_branch.trans(s)
+        if self.condition(s): yield from self.p1.trans(s)
+        else: yield from self.p2.trans(s)
 
     def final(self, s):
-        if self.condition(s):
-            return self.then_branch.final(s)
-        else:
-            return self.else_branch.final(s)
+        if self.condition(s): return self.p1.final(s)
+        else: return self.p2.final(s)
 
 class Pick(Program):
-    def __init__(self, domain, prog):
+    def __init__(self, domain, p1):
         self.domain = domain
-        self.prog = prog
+        self.p1 = p1
 
     def trans(self, s):
         for obj in Object.get_objects_of_type(self.domain):
-            yield from self.prog(obj).trans(s)
+            yield from self.p1(obj).trans(s)
 
     def final(self, s):
         for obj in Object.get_objects_of_type(self.domain):
-            if self.prog(obj).final(s): return True
+            if self.p1(obj).final(s): return True
         return False
 
 class Sequence(Program):
