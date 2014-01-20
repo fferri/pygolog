@@ -1,22 +1,20 @@
 #!/usr/bin/env python
 
 import inspect, itertools
+from collections import defaultdict
 from copy import copy, deepcopy
-
-_actions = {}
-_objects = {}
 
 # action decorator
 class Action():
+    _actions = dict()
+
     def __init__(self, method):
-        global _actions
         self.action = True
         self.name = method.__name__
         self.method = method
         arg_spec = inspect.getfullargspec(method)
-        self.types = [arg_spec.annotations[arg] if arg in arg_spec.annotations else Object for arg in arg_spec.args[1:]]
-
-        _actions[self.name] = self
+        self.types = [arg_spec.annotations.get(arg, Object) for arg in arg_spec.args[1:]]
+        Action._actions[self.name] = self
 
     def apply(self, state, *args):
         cloned_state = state.copy()
@@ -28,36 +26,6 @@ class Action():
 
     def __call__(self, *args):
         return self.ground(*args)
-
-def pick_action(s):
-    global objects
-    for action_name, action in _actions.items():
-        for args in itertools.product(*[get_objects_of_type(t) for t in action.types]):
-            try:
-                yield (action.ground(*args), action.apply(s, *args))
-            except UnsatisfiedPreconditions:
-                pass
-
-def action_sequence(s, length):
-    if length == 0:
-        yield ([], s)
-        return
-    for action, s1 in pick_action(s):
-        for p, s2 in action_sequence(s1, length - 1):
-            yield ([action] + p, s2)
-
-def plan_bfs(s, goal, maxlength):
-    for length in range(maxlength + 1):
-        for plan, s1 in action_sequence(s, length):
-            if goal(s1):
-                yield plan
-
-def get_types():
-    return list(_objects.keys())
-
-def get_objects_of_type(t):
-    if t in _objects: return _objects[t]
-    else: return []
 
 class GroundAction(object):
     def __init__(self, action, *args):
@@ -82,13 +50,18 @@ class GroundAction(object):
         return self.action.apply(s, *self.args)
 
 class Object(object):
+    _objects = defaultdict(list)
+
+    def get_types():
+        return list(Object._objects.keys())
+
+    def get_objects_of_type(t):
+        return Object._objects.get(t, [])
+
     def __init__(self, name):
-        global _objects
         t = type(self)
         while t is not object:
-            if t not in _objects:
-                _objects[t] = []
-            _objects[t].append(self)
+            Object._objects[t].append(self)
             t = t.__base__
         self.name = name
 
@@ -126,6 +99,27 @@ class State(object):
     def actions(self):
         for k in dir(self):
             if getattr(getattr(self, k), 'action', False): yield k
+
+    def pick_action(self):
+        for action_name, action in Action._actions.items():
+            for args in itertools.product(*[Object.get_objects_of_type(t) for t in action.types]):
+                try: yield (action.ground(*args), action.apply(self, *args))
+                except UnsatisfiedPreconditions: pass
+
+    def action_sequence(self, length):
+        if length == 0:
+            yield ([], self)
+            return
+        for action, s1 in self.pick_action():
+            for p, s2 in s1.action_sequence(length - 1):
+                yield ([action] + p, s2)
+
+    def plan_bfs(self, goal, cur_len=0, max_len=None):
+        for plan, s1 in self.action_sequence(cur_len):
+            if goal(s1):
+                yield plan
+        if not max_len or cur_len < max_len:
+            yield from self.plan_bfs(goal, cur_len + 1, max_len)
 
 class UnsatisfiedPreconditions(Exception):
     pass

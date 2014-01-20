@@ -67,11 +67,11 @@ class Pick(Program):
         self.prog = prog
 
     def trans(self, s):
-        for obj in get_objects_of_type(self.domain):
+        for obj in Object.get_objects_of_type(self.domain):
             yield from self.prog(obj).trans(s)
 
     def final(self, s):
-        for obj in get_objects_of_type(self.domain):
+        for obj in Object.get_objects_of_type(self.domain):
             if self.prog(obj).final(s): return True
         return False
 
