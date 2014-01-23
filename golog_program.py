@@ -25,12 +25,16 @@ class Choose(Program):
     def final(self, s):
         return self.p1.final(s) or self.p2.final(s)
 
+    def __repr__(self): return '(%s|%s)' % (self.p1, self.p2)
+
 class Empty(Program):
     def trans(self, s):
         raise Exception('cannot step empty program')
 
     def final(self, s):
         return True
+
+    def __repr__(self): return 'nil'
 
 class Exec(Program):
     def __init__(self, ground_action):
@@ -42,6 +46,8 @@ class Exec(Program):
 
     def final(self, s):
         return False
+
+    def __repr__(self): return '%s' % (self.ground_action)
 
 class If(Program):
     def __init__(self, condition, p1, p2):
@@ -57,6 +63,8 @@ class If(Program):
         if self.condition(s): return self.p1.final(s)
         else: return self.p2.final(s)
 
+    def __repr__(self): return 'if %s then %s else %s endIf' % ('<cond>', self.p1, self.p2)
+
 class Pick(Program):
     def __init__(self, domain, p1):
         self.domain = domain
@@ -70,6 +78,8 @@ class Pick(Program):
         for obj in Object.get_objects_of_type(self.domain):
             if self.p1(obj).final(s): return True
         return False
+
+    def __repr__(self): return 'pick from %s and (%s)' % (self.domain.__name__, self.p1)
 
 class Sequence(Program):
     def __init__(self, p1, p2, *ps):
@@ -86,6 +96,8 @@ class Sequence(Program):
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
 
+    def __repr__(self): return '(%s;%s)' % (self.p1, self.p2)
+
 class Star(Program):
     def __init__(self, p1):
         self.p1 = p1
@@ -97,6 +109,8 @@ class Star(Program):
     def final(self, s):
         return True
 
+    def __repr__(self): return '(%s)*' % (self.p1)
+
 class Test(Program):
     def __init__(self, condition):
         self.condition = condition
@@ -107,6 +121,8 @@ class Test(Program):
 
     def final(self, s):
         return False
+
+    def __repr__(self): return '?(%s)' % ('<cond>')
 
 class While(Program):
     def __init__(self, condition, p1):
@@ -120,3 +136,5 @@ class While(Program):
 
     def final(self, s):
         return not self.condition(s) or self.p1.final(s)
+
+    def __repr__(self): return 'while %s do %s endWhile' % ('<cond>', self.p1)
