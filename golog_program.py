@@ -5,10 +5,28 @@ from strips import *
 def trans_star(p, s, a):
     if p.final(s):
         yield (p, s, a)
-    if isinstance(p, Empty):
-        return
     for p1, s1, a1 in p.trans(s):
         yield from trans_star(p1, s1, a + a1)
+
+def indigolog(p, s, a, exog_occurs=lambda s: None):
+    # at each step ask for an exogenous action:
+    exog = exog_occurs(s)
+    if exog:
+        if not isinstance(exog, GroundAction):
+            raise TypeError('exogenous actions must be GroundAction instances')
+        s1 = exog.apply(s)
+        a1 = a + [exog]
+        return indigolog(p, s1, a1, exog_occurs)
+    for p1, s1, a1 in p.trans(s):
+        # commit to the first step, since we are executing in an online fashion:
+        return indigolog(p1, s1, a + a1, exog_occurs)
+    else:
+        if p.final(s):
+            for action in a: print(action)
+            print('%d actions.' % len(a))
+        else:
+            print('execution failed; %d actions.' % len(a))
+        return
 
 class Program:
     pass
@@ -29,7 +47,7 @@ class Choose(Program):
 
 class Empty(Program):
     def trans(self, s):
-        raise Exception('cannot step empty program')
+        yield from () # yield nothing
 
     def final(self, s):
         return True
@@ -80,6 +98,18 @@ class Pick(Program):
         return False
 
     def __repr__(self): return 'pick from %s and (%s)' % (self.domain.__name__, self.p1)
+
+class Search(Program):
+    def __init__(self, p1):
+        self.p1 = p1
+
+    def trans(self, s):
+        yield from trans_star(self.p1, s, [])
+
+    def final(self, s):
+        return any(trans_star(self.p1, s, []))
+
+    def __repr__(self): return 'search { %s }' % self.p1
 
 class Sequence(Program):
     def __init__(self, p1, p2, *ps):
