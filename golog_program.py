@@ -8,24 +8,17 @@ def trans_star(p, s, a):
     for p1, s1, a1 in p.trans(s):
         yield from trans_star(p1, s1, a + a1)
 
-def indigolog(p, s, a, exog_occurs=lambda s: None):
-    # at each step ask for an exogenous action:
-    exog = exog_occurs(s)
-    if exog:
-        if not isinstance(exog, GroundAction):
-            raise TypeError('exogenous actions must be GroundAction instances')
-        s1 = exog.apply(s)
-        a1 = a + [exog]
-        return indigolog(p, s1, a1, exog_occurs)
+def indigolog(p, s, a, exog=lambda s: s, verbose=True):
+    # at each step apply exogenous events if any:
+    s = exog(s)
     for p1, s1, a1 in p.trans(s):
+        if verbose: print(a1)
         # commit to the first step, since we are executing in an online fashion:
-        return indigolog(p1, s1, a + a1, exog_occurs)
+        return indigolog(p1, s1, a + a1, exog, verbose)
     else:
-        if p.final(s):
-            for action in a: print(action)
-            print('%d actions.' % len(a))
-        else:
-            print('execution failed; %d actions.' % len(a))
+        if not verbose: return
+        if p.final(s): print('%d actions.' % len(a))
+        else: print('execution failed; %d actions.' % len(a))
         return
 
 class Program:
