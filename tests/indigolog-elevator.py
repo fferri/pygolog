@@ -24,5 +24,13 @@ p = control()
 print('initial state: %s' % s)
 print('program: %s' % p)
 
-indigolog(p, s, [])
+def ask_exog(s):
+    print('current state: %s' % s)
+    ans = input('exog? [type the numbers of buttons pressed, from 1 to %d] ' % s.num_floors)
+    print('\n\n')
+    for i in map(int, ans):
+        s.light[i] = True
+    return s
+
+indigolog(p, s, [], exog=ask_exog)
 
