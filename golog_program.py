@@ -161,3 +161,61 @@ class While(Program):
         return not self.condition(s) or self.p1.final(s)
 
     def __repr__(self): return 'while %s do %s endWhile' % ('<cond>', self.p1)
+
+# ConGolog constructs:
+
+class Conc(Program):
+    def __init__(self, p1, p2 *ps):
+        self.p1 = p1
+        self.p2 = Conc(p2, ps[0], *ps[1:]) if ps else p2
+
+    def trans(self, s):
+        p1_trans = False
+        for pn, sn, an in self.p1.trans(s):
+            p1_trans = True
+            yield (pn, sn, an)
+        if p1_trans: return
+        yield from self.p2.trans(s)
+
+    def final(self, s):
+        return self.p1.final(s) and self.p2.final(s)
+
+    def __repr__(self): return '(%s||%s)' % (self.p1, self.p2)
+
+class PConc(Program):
+    def __init__(self, p1, p2, *ps):
+        self.p1 = p1
+        self.p2 = PConc(p2, ps[0], *ps[1:]) if ps else p2
+
+    def trans(self, s):
+        p1_trans = False
+        for pn, sn, an in self.p1.trans(s):
+            p1_trans = True
+            yield (PConc(pn, self.p2), sn, an)
+        if p1_trans: return
+        for pn, sn, an in self.p2.trans(s):
+            yield (PConc(self.p1, pn), sn, an)
+
+    def final(self, s):
+        return self.p1.final(s) and self.p2.final(s)
+
+    def __repr__(self): return '(%s>>%s)' % (self.p1, self.p2)
+
+class IConc(Program):
+    def __init__(self, p1):
+        self.p1 = p1
+
+    def trans(self, s):
+        for pn, sn, an in self.p1.trans(s):
+            yield (Conc(pn, IConc(self.p1)), sn, an)
+
+    def final(self, s):
+        return True
+
+    def __repr__(self): return 'iconc(%s)' % (self.p1)
+
+def interrupt(trigger, body):
+    return While(lambda s: True, If(trigger, body, Test(lambda s: False)))
+
+def prioritized_interrupts(*args):
+    return PConc(*args)
