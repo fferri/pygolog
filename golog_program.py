@@ -165,7 +165,7 @@ class While(Program):
 # ConGolog constructs:
 
 class Conc(Program):
-    def __init__(self, p1, p2 *ps):
+    def __init__(self, p1, p2, *ps):
         self.p1 = p1
         self.p2 = Conc(p2, ps[0], *ps[1:]) if ps else p2
 
