@@ -173,9 +173,10 @@ class Conc(Program):
         p1_trans = False
         for pn, sn, an in self.p1.trans(s):
             p1_trans = True
-            yield (pn, sn, an)
+            yield (Conc(pn, self.p2), sn, an)
         if p1_trans: return
-        yield from self.p2.trans(s)
+        for pn, sn, an in self.p2.trans(s):
+            yield (Conc(self.p1, pn), sn, an)
 
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
