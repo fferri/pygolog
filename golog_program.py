@@ -110,11 +110,10 @@ class Sequence(Program):
         self.p2 = Sequence(p2, ps[0], *ps[1:]) if ps else p2
 
     def trans(self, s):
-        if not isinstance(self.p1, Empty):
-            for pn, sn, an in self.p1.trans(s):
-                yield (Sequence(pn, self.p2), sn, an)
-        if self.p1.final(s) or isinstance(self.p1, Empty):
+        if self.p1.final(s):
             yield from self.p2.trans(s)
+        for pn, sn, an in self.p1.trans(s):
+            yield (Sequence(pn, self.p2), sn, an)
 
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
