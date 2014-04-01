@@ -36,7 +36,7 @@ class Choose(Program):
     def final(self, s):
         return self.p1.final(s) or self.p2.final(s)
 
-    def __repr__(self): return '(%s|%s)' % (self.p1, self.p2)
+    def __repr__(self): return 'Choose(%s, %s)' % (self.p1, self.p2)
 
 class Empty(Program):
     def trans(self, s):
@@ -45,7 +45,7 @@ class Empty(Program):
     def final(self, s):
         return True
 
-    def __repr__(self): return 'nil'
+    def __repr__(self): return 'Empty()'
 
 class Exec(Program):
     def __init__(self, ground_action):
@@ -58,7 +58,7 @@ class Exec(Program):
     def final(self, s):
         return False
 
-    def __repr__(self): return '%s' % (self.ground_action)
+    def __repr__(self): return 'Exec(%s)' % (self.ground_action)
 
 class If(Program):
     def __init__(self, condition, p1, p2):
@@ -74,7 +74,7 @@ class If(Program):
         if self.condition(s): return self.p1.final(s)
         else: return self.p2.final(s)
 
-    def __repr__(self): return 'if %s then %s else %s endIf' % ('<cond>', self.p1, self.p2)
+    def __repr__(self): return 'If(%s, %s, %s)' % (self.cond, self.p1, self.p2)
 
 class Pick(Program):
     def __init__(self, domain, p1):
@@ -90,7 +90,7 @@ class Pick(Program):
             if self.p1(obj).final(s): return True
         return False
 
-    def __repr__(self): return 'pick from %s and (%s)' % (self.domain.__name__, self.p1)
+    def __repr__(self): return 'Pick(%s, %s)' % (self.domain.__name__, self.p1)
 
 class Search(Program):
     def __init__(self, p1):
@@ -102,7 +102,7 @@ class Search(Program):
     def final(self, s):
         return any(trans_star(self.p1, s, []))
 
-    def __repr__(self): return 'search { %s }' % self.p1
+    def __repr__(self): return 'Search(%s)' % self.p1
 
 class Sequence(Program):
     def __init__(self, p1, p2, *ps):
@@ -118,7 +118,7 @@ class Sequence(Program):
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
 
-    def __repr__(self): return '(%s;%s)' % (self.p1, self.p2)
+    def __repr__(self): return 'Sequence(%s, %s)' % (self.p1, self.p2)
 
 class Star(Program):
     def __init__(self, p1):
@@ -131,7 +131,7 @@ class Star(Program):
     def final(self, s):
         return True
 
-    def __repr__(self): return '(%s)*' % (self.p1)
+    def __repr__(self): return 'Star(%s)' % (self.p1)
 
 class Test(Program):
     def __init__(self, condition):
@@ -144,7 +144,7 @@ class Test(Program):
     def final(self, s):
         return False
 
-    def __repr__(self): return '?(%s)' % ('<cond>')
+    def __repr__(self): return 'Test(%s)' % self.condition
 
 class While(Program):
     def __init__(self, condition, p1):
@@ -159,7 +159,7 @@ class While(Program):
     def final(self, s):
         return not self.condition(s) or self.p1.final(s)
 
-    def __repr__(self): return 'while %s do %s endWhile' % ('<cond>', self.p1)
+    def __repr__(self): return 'While(%s, %s)' % (self.condition, self.p1)
 
 # ConGolog constructs:
 
@@ -180,7 +180,7 @@ class Conc(Program):
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
 
-    def __repr__(self): return '(%s||%s)' % (self.p1, self.p2)
+    def __repr__(self): return 'Conc(%s, %s)' % (self.p1, self.p2)
 
 class PConc(Program):
     def __init__(self, p1, p2, *ps):
@@ -199,7 +199,7 @@ class PConc(Program):
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
 
-    def __repr__(self): return '(%s>>%s)' % (self.p1, self.p2)
+    def __repr__(self): return 'PConc(%s, %s)' % (self.p1, self.p2)
 
 class IConc(Program):
     def __init__(self, p1):
@@ -212,7 +212,7 @@ class IConc(Program):
     def final(self, s):
         return True
 
-    def __repr__(self): return 'iconc(%s)' % (self.p1)
+    def __repr__(self): return 'IConc(%s)' % (self.p1)
 
 def interrupt(trigger, body):
     return While(lambda s: True, If(trigger, body, Test(lambda s: False)))
