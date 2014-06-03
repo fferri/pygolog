@@ -74,7 +74,7 @@ class If(Program):
         if self.condition(s): return self.p1.final(s)
         else: return self.p2.final(s)
 
-    def __repr__(self): return 'If(%s, %s, %s)' % (self.cond, self.p1, self.p2)
+    def __repr__(self): return 'If(%s, %s, %s)' % (self.condition, self.p1, self.p2)
 
 class Pick(Program):
     def __init__(self, domain, p1):
