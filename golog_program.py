@@ -1,14 +1,25 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from strips import *
 
 def trans_star(p, s, a):
     if p.final(s):
         yield (p, s, a)
-    if isinstance(p, Empty):
-        return
     for p1, s1, a1 in p.trans(s):
         yield from trans_star(p1, s1, a + a1)
+
+def indigolog(p, s, a, exog=lambda s: s, verbose=True):
+    # at each step apply exogenous events if any:
+    s = exog(s)
+    for p1, s1, a1 in p.trans(s):
+        if verbose: print(a1)
+        # commit to the first step, since we are executing in an online fashion:
+        return indigolog(p1, s1, a + a1, exog, verbose)
+    else:
+        if not verbose: return
+        if p.final(s): print('%d actions.' % len(a))
+        else: print('execution failed; %d actions.' % len(a))
+        return
 
 class Program:
     pass
@@ -25,16 +36,16 @@ class Choose(Program):
     def final(self, s):
         return self.p1.final(s) or self.p2.final(s)
 
-    def __repr__(self): return '(%s|%s)' % (self.p1, self.p2)
+    def __repr__(self): return 'Choose(%s, %s)' % (self.p1, self.p2)
 
 class Empty(Program):
     def trans(self, s):
-        raise Exception('cannot step empty program')
+        yield from () # yield nothing
 
     def final(self, s):
         return True
 
-    def __repr__(self): return 'nil'
+    def __repr__(self): return 'Empty()'
 
 class Exec(Program):
     def __init__(self, ground_action):
@@ -47,7 +58,7 @@ class Exec(Program):
     def final(self, s):
         return False
 
-    def __repr__(self): return '%s' % (self.ground_action)
+    def __repr__(self): return 'Exec(%s)' % (self.ground_action)
 
 class If(Program):
     def __init__(self, condition, p1, p2):
@@ -63,7 +74,7 @@ class If(Program):
         if self.condition(s): return self.p1.final(s)
         else: return self.p2.final(s)
 
-    def __repr__(self): return 'if %s then %s else %s endIf' % ('<cond>', self.p1, self.p2)
+    def __repr__(self): return 'If(%s, %s, %s)' % (self.condition, self.p1, self.p2)
 
 class Pick(Program):
     def __init__(self, domain, p1):
@@ -79,7 +90,19 @@ class Pick(Program):
             if self.p1(obj).final(s): return True
         return False
 
-    def __repr__(self): return 'pick from %s and (%s)' % (self.domain.__name__, self.p1)
+    def __repr__(self): return 'Pick(%s, %s)' % (self.domain.__name__, self.p1)
+
+class Search(Program):
+    def __init__(self, p1):
+        self.p1 = p1
+
+    def trans(self, s):
+        yield from trans_star(self.p1, s, [])
+
+    def final(self, s):
+        return any(trans_star(self.p1, s, []))
+
+    def __repr__(self): return 'Search(%s)' % self.p1
 
 class Sequence(Program):
     def __init__(self, p1, p2, *ps):
@@ -87,16 +110,15 @@ class Sequence(Program):
         self.p2 = Sequence(p2, ps[0], *ps[1:]) if ps else p2
 
     def trans(self, s):
-        if not isinstance(self.p1, Empty):
-            for pn, sn, an in self.p1.trans(s):
-                yield (Sequence(pn, self.p2), sn, an)
-        if self.p1.final(s) or isinstance(self.p1, Empty):
+        if self.p1.final(s):
             yield from self.p2.trans(s)
+        for pn, sn, an in self.p1.trans(s):
+            yield (Sequence(pn, self.p2), sn, an)
 
     def final(self, s):
         return self.p1.final(s) and self.p2.final(s)
 
-    def __repr__(self): return '(%s;%s)' % (self.p1, self.p2)
+    def __repr__(self): return 'Sequence(%s, %s)' % (self.p1, self.p2)
 
 class Star(Program):
     def __init__(self, p1):
@@ -109,7 +131,7 @@ class Star(Program):
     def final(self, s):
         return True
 
-    def __repr__(self): return '(%s)*' % (self.p1)
+    def __repr__(self): return 'Star(%s)' % (self.p1)
 
 class Test(Program):
     def __init__(self, condition):
@@ -122,7 +144,7 @@ class Test(Program):
     def final(self, s):
         return False
 
-    def __repr__(self): return '?(%s)' % ('<cond>')
+    def __repr__(self): return 'Test(%s)' % self.condition
 
 class While(Program):
     def __init__(self, condition, p1):
@@ -137,4 +159,63 @@ class While(Program):
     def final(self, s):
         return not self.condition(s) or self.p1.final(s)
 
-    def __repr__(self): return 'while %s do %s endWhile' % ('<cond>', self.p1)
+    def __repr__(self): return 'While(%s, %s)' % (self.condition, self.p1)
+
+# ConGolog constructs:
+
+class Conc(Program):
+    def __init__(self, p1, p2, *ps):
+        self.p1 = p1
+        self.p2 = Conc(p2, ps[0], *ps[1:]) if ps else p2
+
+    def trans(self, s):
+        p1_trans = False
+        for pn, sn, an in self.p1.trans(s):
+            p1_trans = True
+            yield (Conc(pn, self.p2), sn, an)
+        if p1_trans: return
+        for pn, sn, an in self.p2.trans(s):
+            yield (Conc(self.p1, pn), sn, an)
+
+    def final(self, s):
+        return self.p1.final(s) and self.p2.final(s)
+
+    def __repr__(self): return 'Conc(%s, %s)' % (self.p1, self.p2)
+
+class PConc(Program):
+    def __init__(self, p1, p2, *ps):
+        self.p1 = p1
+        self.p2 = PConc(p2, ps[0], *ps[1:]) if ps else p2
+
+    def trans(self, s):
+        p1_trans = False
+        for pn, sn, an in self.p1.trans(s):
+            p1_trans = True
+            yield (PConc(pn, self.p2), sn, an)
+        if p1_trans: return
+        for pn, sn, an in self.p2.trans(s):
+            yield (PConc(self.p1, pn), sn, an)
+
+    def final(self, s):
+        return self.p1.final(s) and self.p2.final(s)
+
+    def __repr__(self): return 'PConc(%s, %s)' % (self.p1, self.p2)
+
+class IConc(Program):
+    def __init__(self, p1):
+        self.p1 = p1
+
+    def trans(self, s):
+        for pn, sn, an in self.p1.trans(s):
+            yield (Conc(pn, IConc(self.p1)), sn, an)
+
+    def final(self, s):
+        return True
+
+    def __repr__(self): return 'IConc(%s)' % (self.p1)
+
+def interrupt(trigger, body):
+    return While(lambda s: True, If(trigger, body, Test(lambda s: False)))
+
+def prioritized_interrupts(*args):
+    return PConc(*args)
