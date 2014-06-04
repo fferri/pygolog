@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from strips import *
-from domains.math import *
+from domains.math1 import *
 
 print('initial state: %s' % (s))
 

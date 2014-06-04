@@ -4,7 +4,7 @@ from collections import defaultdict
 from strips import *
 from golog_program import *
 from domains.bag import S as S
-from domains.math import S as S1
+from domains.math1 import S as S1
 
 def assert_pn(s, incl, excl):
     assert set(incl) <= s.exists
