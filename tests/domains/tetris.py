@@ -30,8 +30,8 @@ class Tetris(State):
         self.col = (Tetris.COLS - 4) // 2
         self.board = [[0] * Tetris.COLS for i in range(Tetris.ROWS)]
 
-    #def copy(self):
-    #    return deepcopy(self)
+    def copy(self):
+        return deepcopy(self)
 
     def copy_current_to_board(self):
         for i, j in self.subidx():
@@ -128,6 +128,26 @@ class Tetris(State):
             return
         self.down()
 
+    def final_positions(self):
+        valid_dcols = [dcol for dcol in range(-Tetris.COLS, Tetris.COLS) if not self.is_collision(0, dcol)]
+        def end_row(dc):
+            dr = 0
+            while not self.is_collision(dr + 1, dc): dr += 1
+            return dr
+        return [(self.row + end_row(dc), self.col + dc) for dc in valid_dcols]
+
+    def all_final_positions(self):
+        ss = [self]
+        for i in [0,0,0]:
+            try:
+                ss.append(Tetris.rotate_right().apply(ss[-1]))
+            except UnsatisfiedPreconditions:
+                pass
+        ret = dict()
+        for i, s in enumerate(ss):
+            ret['r%d' % i] = s.final_positions()
+        return ret
+
     def print(self):
         for i in range(Tetris.ROWS):
             ln = '#'
@@ -162,7 +182,11 @@ def curses_tetris(scr):
                 col = 0
                 if s.board[i][j]: col = s.board[i][j]
                 elif s.current and i - s.row >= 0 and i - s.row < 4 and j - s.col >= 0 and j - s.col < 4 and s.current[i - s.row][j - s.col]: col = s.current[i-s.row][j-s.col]
-                scr.addstr(i, j * 2, "  ", curses.color_pair(col))
+                scr.addstr(i, j * 2, '  ', curses.color_pair(col))
+            scr.addstr(Tetris.ROWS+1, 0, ' ' * 400)
+            scr.addstr(Tetris.ROWS+1, 0, 'Pos.: (%d, %d)' % (s.row, s.col))
+            scr.addstr(Tetris.ROWS+2, 0, ' ' * 400)
+            scr.addstr(Tetris.ROWS+2, 0, 'Fin.pos.: %s' % (s.all_final_positions(), ))
             c = scr.getch()
             if c == curses.KEY_LEFT:
                 s = Tetris.move_left().apply(s)
