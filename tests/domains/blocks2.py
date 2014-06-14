@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from collections import defaultdict
-from copy import copy
 from strips import *
 
 class Block(Object):
