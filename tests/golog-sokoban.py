@@ -9,13 +9,24 @@ move_block = lambda *args: Exec(SokobanState.move_block(*args))
 
 def nearBlock(b):
     return Pick(Space, lambda px:
-            Pick(Space, lambda bx:
-                Test(lambda s: s.has_dude[px] and s.at[player] == px and adjacent(px, bx) and s.has_block[bx] and s.at[b] == bx)))
+           Pick(Space, lambda bx:
+                Test(lambda s: s.has_dude[px] and
+                    s.at[player] == px and
+                    adjacent(px, bx) and
+                    s.has_block[bx] and
+                    s.at[b] == bx)))
 
 def approachOneBlock():
     return Pick(Block, lambda w:
-            Sequence(Star(Pick(Space, lambda x: Pick(Space, lambda y: move(player, x, y)))),
-                nearBlock(w)))
+            Sequence(
+                Star(
+                    Pick(Space, lambda x:
+                    Pick(Space, lambda y:
+                        move(player, x, y)
+                    ))),
+                nearBlock(w)
+            )
+        )
 
 p = approachOneBlock()
 print('initial state: %s' % s)
