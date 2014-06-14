@@ -32,5 +32,8 @@ def ask_exog(s):
         s.light[i] = True
     return s
 
-indigolog(p, s, [], exog=ask_exog)
+def print_exec(a):
+    print('executing %s' % a)
+
+indigolog(p, s, [], exec_cb=print_exec, exog_cb=ask_exog)
 

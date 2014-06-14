@@ -27,7 +27,13 @@ p = Sequence(
 #    print('solution: %s' % an)
 #    print('resulting state: %s' % sn)
 
+def print_exec(a):
+    print('executing %s' % a)
+
 print('following one should fail:')
-indigolog(p, s, [])
+if indigolog(p, s, [], exec_cb=print_exec): print('Succeeded')
+else: print('Failed')
 print('following one should pass:')
-indigolog(Search(p), s, [])
+if indigolog(Search(p), s, [], exec_cb=print_exec): print('Succeeded')
+else: print('Failed')
+

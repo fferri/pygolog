@@ -8,18 +8,14 @@ def trans_star(p, s, a):
     for p1, s1, a1 in p.trans(s):
         yield from trans_star(p1, s1, a + a1)
 
-def indigolog(p, s, a, exog=lambda s: s, verbose=True):
+def indigolog(p, s, a, exec_cb=lambda a: None, exog_cb=lambda s: s):
     # at each step apply exogenous events if any:
-    s = exog(s)
+    s = exog_cb(s)
     for p1, s1, a1 in p.trans(s):
-        if verbose: print(a1)
         # commit to the first step, since we are executing in an online fashion:
-        return indigolog(p1, s1, a + a1, exog, verbose)
-    else:
-        if not verbose: return
-        if p.final(s): print('%d actions.' % len(a))
-        else: print('execution failed; %d actions.' % len(a))
-        return
+        exec_cb(a1)
+        return indigolog(p1, s1, a + a1, exec_cb, exog_cb)
+    else: return p.final(s)
 
 class Program:
     pass
