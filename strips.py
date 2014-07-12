@@ -52,9 +52,11 @@ class GroundAction(object):
 class Object(object):
     _objects = defaultdict(list)
 
+    @staticmethod
     def get_types():
         return list(Object._objects.keys())
 
+    @staticmethod
     def get_objects_of_type(t):
         return Object._objects.get(t, [])
 
