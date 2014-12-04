@@ -2,6 +2,61 @@
 
 from strips import *
 
+#def astar(p, s, a):
+#    start = (p, s, a)
+#    closed = []
+#    open = []
+#    gh = []
+#
+#    def heuristic_cost_estimate(x): return 0
+#
+#    def add_to_open(x, g, h):
+#        if x not in open:
+#            open.append(x)
+#            gh = (g, h)
+#
+#    def find_next_best():
+#        current = None
+#        g, h = 0, 0
+#        for i in range(len(open)):
+#            if current is None or gh[i][0] + gh[i][1] < g + h:
+#                current = open[i]
+#                g, h = gh[i]
+#        return (current, g, h)
+#
+#    def move_to_closed(x):
+#        if x in open:
+#            i = open.index(x)
+#            del open[i]
+#            del gh[i]
+#        if current not in closed:
+#            closed.append(x)
+#
+#    def update_gh(x, g, h)
+#
+#    add_to_open(start, 0, heuristic_cost_estimate(start))
+#
+#    while open:
+#        current, g, h = find_next_best()
+#
+#        p, s, a = current
+#        if p.final(s):
+#            yield current
+#
+#        move_to_closed(current)
+#
+#        for next1 in p.trans(s):
+#            if next1 in closed:
+#                continue
+#            p1, s1, a1 = next1
+#            g1 = g + 1 # 1 == dist_between(current, next1)
+#
+#            if next1 not in open or g1 < gh[open.index(next1)][0]:
+#                i = open.index(next1)
+#                gh[next1][0] = g1
+#                if next1 not in open:
+#                    open.add(next1)
+
 def trans_star(p, s, a):
     if p.final(s):
         yield (p, s, a)
